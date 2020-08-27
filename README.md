@@ -14,7 +14,7 @@ This exporter runs on port 9750.
 ## Running the exporter
 
 ### CLI
-ASPEN_URL=aspen.example.com python aspen_exporter.py
+`ASPEN_URL=aspen.example.com python aspen_exporter.py`
 
 ### Docker
-docker run -p 9750:9750 -e ASPEN_URL=aspen.example.com quay.io/prometheus-exporter-aspen
+`docker run -p 9750:9750 -e ASPEN_URL=aspen.example.com quay.io/prometheus-exporter-aspen`
