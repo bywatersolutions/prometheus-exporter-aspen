@@ -32,7 +32,7 @@ class CustomCollector(object):
             yield ok
 
 if __name__ == '__main__':
-    start_http_server(8000)
+    start_http_server(9750)
     REGISTRY.register(CustomCollector())
     while True:
         time.sleep(1)
