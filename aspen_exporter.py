@@ -19,16 +19,11 @@ class CustomCollector(object):
         response = requests.get(url)
         data = response.json()
 
-        is_aspen_ok = 1 if data["result"]["aspen_health_status"] == "okay" else 0
-        aspen_ok = GaugeMetricFamily("solr_guage", 'Is solr ok', labels=['instance'])
-        aspen_ok.add_metric([fqdn], is_aspen_ok)
-        yield aspen_ok
-
         keys = ["solr", "backup", "memory_usage", "load_average", "nightly_index", "koha", "side_loads", "overdrive", "hoopla", "open_archives", "cloud_library", "cron", "sitemap", "offline_holds"]
         for key in keys:
             if key in data["result"]["checks"]:
                 is_ok = 1 if data["result"]["checks"][key]["status"] == "okay" else 0
-                ok = GaugeMetricFamily(f"{key}_guage", f'Is {key} ok', labels=['instance'])
+                ok = GaugeMetricFamily(f"aspen_{key}_guage", f'Is {key} ok', labels=['instance'])
                 ok.add_metric([fqdn], 1)
                 yield ok
 
