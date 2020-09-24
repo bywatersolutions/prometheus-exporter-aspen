@@ -23,8 +23,28 @@ class CustomCollector(object):
         for key in keys:
             if key in data["result"]["checks"]:
                 is_ok = 1 if data["result"]["checks"][key]["status"] == "okay" else 0
-                ok = GaugeMetricFamily(f"aspen_{key}_guage", f'Is {key} ok', labels=['instance'])
-                ok.add_metric([fqdn], 1)
+                ok = GaugeMetricFamily(f"aspen_check_{key}", f'Is {key} ok', labels=['instance'])
+                ok.add_metric([fqdn], is_ok)
+                yield ok
+
+        keys = ["data_disk_space", "usr_disk_space", "total_memory", "available_memory"]
+        for key in keys:
+            if key in data["result"]["serverStats"]:
+                val = data["result"]["serverStats"][key]["value"]
+                vals = val.split(" ");
+                val = val[0];
+                desc = data["result"]["serverStats"][key]["name"]
+                ok = GaugeMetricFamily(f"aspen_stat_{key}", f'{desc} in {vals[1]}', labels=['instance'])
+                ok.add_metric([fqdn], val)
+                yield ok
+
+        keys = ["percent_memory_in_use", "1_minute_load_average", "5_minute_load_average", "15_minute_load_average", "load_per_cpu"]
+        for key in keys:
+            if key in data["result"]["serverStats"]:
+                val = data["result"]["serverStats"][key]["value"]
+                desc = data["result"]["serverStats"][key]["name"]
+                ok = GaugeMetricFamily(f"aspen_stat_{key}", desc, labels=['instance'])
+                ok.add_metric([fqdn], val)
                 yield ok
 
 if __name__ == '__main__':
