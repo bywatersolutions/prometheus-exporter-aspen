@@ -4,7 +4,6 @@ import time
 from prometheus_client.core import GaugeMetricFamily, REGISTRY, CounterMetricFamily
 from prometheus_client import start_http_server
 
-
 class CustomCollector(object):
     def __init__(self):
         pass
@@ -19,12 +18,37 @@ class CustomCollector(object):
         response = requests.get(url)
         data = response.json()
 
+        # Aspen general health status
+        aspen_health_status = data["result"]["aspen_health_status"];
+
+        if aspen_health_status == "okay":
+            is_ok = 1
+        elif aspen_health_status == "warning":
+            is_ok = .5
+        else: # critical
+            is_ok = 0
+
+        ok = GaugeMetricFamily(f"aspen_check_health_status", f'Is aspen ok', labels=['instance'])
+        ok.add_metric([fqdn], is_ok)
+        yield ok
+
+        # Specific aspen health checks
         for key in data["result"]["checks"].keys():
-            is_ok = 1 if data["result"]["checks"][key]["status"] == "okay" else 0
+            is_ok = None
+            status = data["result"]["checks"][key]["status"]
+
+            if status == "okay":
+                is_ok = 1
+            elif status == "warning":
+                is_ok = .5
+            else: # critical
+                is_ok = 0
+
             ok = GaugeMetricFamily(f"aspen_check_{key}", f'Is {key} ok', labels=['instance'])
             ok.add_metric([fqdn], is_ok)
             yield ok
 
+        # Aspen server metrics
         for key in data["result"]["serverStats"].keys():
             val = str(data["result"]["serverStats"][key]["value"])
             vals = val.split(" ");
