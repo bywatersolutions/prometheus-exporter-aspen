@@ -44,8 +44,8 @@ class CustomCollector(object):
             else: # critical
                 is_ok = 0
 
-            ok = GaugeMetricFamily(f"aspen_check_{key}", f'Is {key} ok', labels=['instance'])
-            ok.add_metric([fqdn], is_ok)
+            ok = GaugeMetricFamily(f"aspen_check_{key}", f'Is {key} ok', labels=['instance','aspen_health_check_type'])
+            ok.add_metric([fqdn,key], is_ok)
             yield ok
 
         # Aspen server metrics
