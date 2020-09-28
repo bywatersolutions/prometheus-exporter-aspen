@@ -29,9 +29,10 @@ class CustomCollector(object):
             val = str(data["result"]["serverStats"][key]["value"])
             vals = val.split(" ");
             if len(vals) > 1: # Value contains a number and a metric, i.e. "41.49 GB"
-                val = val[0];
+                val = vals[0]
+                metric = vals[1]
                 desc = data["result"]["serverStats"][key]["name"]
-                ok = GaugeMetricFamily(f"aspen_stat_{key}", f'{desc} in {vals[1]}', labels=['instance'])
+                ok = GaugeMetricFamily(f"aspen_stat_{key}", f'{desc} in {metric}', labels=['instance'])
                 ok.add_metric([fqdn], val)
                 yield ok
             else: # Value is just a cimple number, i.e. "0.31" # Value is just a cimple number, i.e. "0.31"
