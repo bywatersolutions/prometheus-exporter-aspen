@@ -1,73 +1,74 @@
+#!/usr/bin/env python3
+
+"""
+A server for exporting Aspen stats for Prometheus
+Usage::
+    ./aspen_exporter.py [<port>]
+"""
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from prometheus_client import CONTENT_TYPE_LATEST
+from socketserver import ForkingMixIn
+from urllib.parse import urlparse
+import logging
 import os
-import requests
-import time
-from prometheus_client.core import GaugeMetricFamily, REGISTRY, CounterMetricFamily
-from prometheus_client import start_http_server
+import urllib
 
-class CustomCollector(object):
-    def __init__(self):
+from collector import collect_aspen
+
+class ForkingHTTPServer(ForkingMixIn, HTTPServer):
+  pass
+
+class AspenExporterHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        url = urlparse(self.path)
+        if url.path == '/metrics':
+          params = urllib.parse.parse_qs(url.query)
+          if 'address' not in params:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write("Parameter 'address' is required".encode('utf-8'))
+            return
+
+          self.send_response(200)
+          self.send_header('Content-Type', CONTENT_TYPE_LATEST)
+          self.end_headers()
+
+          address = params['address'][0]
+          output = collect_aspen(address)
+
+          self.wfile.write(output)
+        elif url.path == '/':
+          self.send_response(200)
+          self.end_headers()
+          self.wfile.write("""<html>
+          <head><title>Aspen Exporter for Prometheus</title></head>
+          <body>
+          <h1>Aspen Exporter for Prometheus</h1>
+          <p>Visit <code>/metrics?address=my.aspen.example.com</code> to use.</p>
+          </body>
+          </html>""".encode('utf-8'))
+        else:
+          self.send_response(404)
+          self.end_headers()
+
+def run(server_class=HTTPServer, handler_class=AspenExporterHandler, cli_port=""):
+    port = cli_port or os.environ.get('ASPEN_EXPORTER_PORT') or 9750
+    logging.basicConfig(level=logging.INFO)
+    server_address = ('', port)
+    httpd = server_class(server_address, handler_class)
+    logging.info(f'Starting httpd on port {port}...\n')
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
         pass
-
-    def collect(self):
-        fqdn = os.environ.get('ASPEN_URL')
-        if fqdn == None:
-            print("No value found for environment variable ASPEN_URL!")
-            exit(1)
-
-        url = f"https://{fqdn}/API/SearchAPI?method=getIndexStatus"
-        response = requests.get(url)
-        data = response.json()
-
-        # Aspen general health status
-        aspen_health_status = data["result"]["aspen_health_status"];
-
-        if aspen_health_status == "okay":
-            is_ok = 1
-        elif aspen_health_status == "warning":
-            is_ok = .5
-        else: # critical
-            is_ok = 0
-
-        ok = GaugeMetricFamily(f"aspen_check_health_status", f'Is aspen ok', labels=['instance'])
-        ok.add_metric([fqdn], is_ok)
-        yield ok
-
-        # Specific aspen health checks
-        for key in data["result"]["checks"].keys():
-            is_ok = None
-            status = data["result"]["checks"][key]["status"]
-
-            if status == "okay":
-                is_ok = 1
-            elif status == "warning":
-                is_ok = .5
-            else: # critical
-                is_ok = 0
-
-            ok = GaugeMetricFamily(f"aspen_check_{key}", f'Is {key} ok', labels=['instance','aspen_health_check_type'])
-            ok.add_metric([fqdn,key], is_ok)
-            yield ok
-
-        # Aspen server metrics
-        for key in data["result"]["serverStats"].keys():
-            val = str(data["result"]["serverStats"][key]["value"])
-            vals = val.split(" ");
-            if len(vals) > 1: # Value contains a number and a metric, i.e. "41.49 GB"
-                val = vals[0]
-                metric = vals[1]
-                desc = data["result"]["serverStats"][key]["name"]
-                ok = GaugeMetricFamily(f"aspen_stat_{key}", f'{desc} in {metric}', labels=['instance'])
-                ok.add_metric([fqdn], val)
-                yield ok
-            else: # Value is just a cimple number, i.e. "0.31" # Value is just a cimple number, i.e. "0.31"
-                val = data["result"]["serverStats"][key]["value"]
-                desc = data["result"]["serverStats"][key]["name"]
-                ok = GaugeMetricFamily(f"aspen_stat_{key}", desc, labels=['instance'])
-                ok.add_metric([fqdn], val)
-                yield ok
+    httpd.server_close()
+    logging.info('Stopping httpd...\n')
 
 if __name__ == '__main__':
-    start_http_server(9750)
-    REGISTRY.register(CustomCollector())
-    while True:
-        time.sleep(1)
+    from sys import argv
+
+    if len(argv) == 2:
+        run(port=int(argv[1]))
+    else:
+        run()
