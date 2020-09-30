@@ -1,6 +1,7 @@
 from prometheus_client import CollectorRegistry, generate_latest
 from prometheus_client.core import GaugeMetricFamily
 import requests
+import logging
 
 def collect_aspen(address):
     registry = CollectorRegistry()
@@ -12,6 +13,8 @@ class CustomCollector(object):
         self.address = address
 
     def collect(self):
+        logging.basicConfig(level=logging.INFO)
+
         metrics = {}
 
         aspen_fqdn = self.address
@@ -30,7 +33,8 @@ class CustomCollector(object):
         else: # critical
             is_ok = 0
 
-        metric_name = f"aspen_check_health_status"
+        metric_name = "aspen_check_health_status".replace(".", "_")
+        metric_name.replace(".", "_")
         ok = GaugeMetricFamily(metric_name, f'Is aspen ok', labels=['instance'])
         ok.add_metric([aspen_fqdn], is_ok)
 
@@ -48,7 +52,7 @@ class CustomCollector(object):
             else: # critical
                 is_ok = 0
 
-            metric_name = f"aspen_check_{key}"
+            metric_name = f"aspen_check_{key}".replace(".", "_")
             ok = GaugeMetricFamily(metric_name, f'Is {key} ok', labels=['instance','aspen_health_check_type'])
             ok.add_metric([aspen_fqdn,key], is_ok)
 
@@ -58,7 +62,8 @@ class CustomCollector(object):
         for key in data["result"]["serverStats"].keys():
             val = str(data["result"]["serverStats"][key]["value"])
             vals = val.split(" ");
-            metric_name = f"aspen_stat_{key}"
+            metric_name = f"aspen_check_{key}".replace(".", "_")
+            metric_name.replace(".", "_")
             if len(vals) > 1: # Value contains a number and a metric, i.e. "41.49 GB"
                 val = vals[0]
                 metric = vals[1]
