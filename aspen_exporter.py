@@ -54,10 +54,14 @@ class AspenExporterHandler(BaseHTTPRequestHandler):
 
 def run(server_class=HTTPServer, handler_class=AspenExporterHandler, cli_port=""):
     port = cli_port or os.environ.get('ASPEN_EXPORTER_PORT') or 9750
+    port = int(port)
+
     logging.basicConfig(level=logging.INFO)
+    logging.info(f'Starting httpd on port {port}...\n')
+
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    logging.info(f'Starting httpd on port {port}...\n')
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
